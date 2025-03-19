@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flappy Bird Clone</title>
+<style>
+/* CSS Code */
+body {
+margin: 0;
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+height: 100vh;
+background-color: #70c5ce;
+font-family: Arial, sans-serif;
+}
+
+#game {
+position: relative;
+width: 400px;
+height: 600px;
+background-color: #70c5ce;
+border: 2px solid #000;
+overflow: hidden;
+}
+
+#bird {
+position: absolute;
+top: 50%;
+left: 50px;
+width: 40px;
+height: 40px;
+background-color: yellow;
+border-radius: 50%;
+}
+
+#obstacles {
+position: absolute;
+width: 100%;
+height: 100%;
+}
+
+.obstacle {
+position: absolute;
+width: 60px;
+background-color: green;
+}
+
+#score {
+margin-top: 20px;
+font-size: 24px;
+color: white;
+}
+
+#level {
+margin-top: 10px;
+font-size: 20px;
+color: white;
+}
+
+#winner {
+display: none;
+font-size: 48px;
+margin-top: 20px;
+}
+
+#game-over {
+display: none;
+flex-direction: column;
+align-items: center;
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+background-color: rgba(0, 0, 0, 0.8);
+padding: 20px;
+border-radius: 10px;
+color: white;
+text-align: center;
+}
+
+#restart-button {
+margin-top: 20px;
+padding: 10px 20px;
+font-size: 16px;
+cursor: pointer;
+background-color: #4CAF50;
+color: white;
+border: none;
+border-radius: 5px;
+}
+
+#restart-button:hover {
+background-color: #45a049;
+}
+</style>
+</head>
+<body>
+<!-- HTML Code -->
+<div id="game">
+<div id="bird"></div>
+<div id="obstacles"></div>
+<div id="game-over">
+<div>Game Over!</div>
+<div id="final-score">Score: 0</div>
+<button id="restart-button">Restart</button>
+</div>
+</div>
+<div id="score">Score: 0</div>
+<div id="level">Level: 1</div>
+<div id="winner">🏆🎉 You Win! 🎉🏆</div>
+
+<script>
+// JavaScript Code
+const bird = document.getElementById("bird");
+const obstacles = document.getElementById("obstacles");
+const scoreElement = document.getElementById("score");
+const levelElement = document.getElementById("level");
+const winnerElement = document.getElementById("winner");
+const gameOverElement = document.getElementById("game-over");
+const finalScoreElement = document.getElementById("final-score");
+const restartButton = document.getElementById("restart-button");
+let birdY = 250;
+let gravity = 1.5; // Faster falling (like Flappy Bird)
+let score = 0;
+let level = 1;
+let obstacleCount = 0;
+let gameInterval;
+let obstacleInterval;
+
+// Obstacle height ratios (upper:lower)
+const obstacleRatios = [
+{ upper: 3, lower: 8 }, // 3:8
+{ upper: 2, lower: 3 }, // 2:3
+{ upper: 5, lower: 9 }, // 5:9
+{ upper: 1, lower: 2 }, // 1:2
+{ upper: 5, lower: 5 }, // 5:5
+{ upper: 2, lower: 7 }, // 2:7
+{ upper: 3, lower: 7 }, // 3:7
+];
+
+// Move the bird
+function moveBird() {
+birdY += gravity;
+bird.style.top = birdY + "px";
+
+// Check for collisions or out of bounds
+if (birdY > 560 || birdY < 0 || checkCollision()) {
+endGame();
+}
+}
+
+// Make the bird jump
+document.addEventListener("click", () => {
+birdY -= 50; // Jump height
+});
+
+// Generate obstacles
+function createObstacle() {
+if (obstacleCount >= 70) {
+clearInterval(obstacleInterval);
+clearInterval(gameInterval);
+showWinner();
+return;
+}
+
+const gap = 150; // Gap between upper and lower obstacles
+const totalHeight = 600 - gap; // Total height available for obstacles
+
+// Randomly select an obstacle ratio
+const ratio = obstacleRatios[Math.floor(Math.random() * obstacleRatios.length)];
+const upperHeight = (totalHeight * ratio.upper) / (ratio.upper + ratio.lower);
+const lowerHeight = totalHeight - upperHeight;
+
+// Create upper obstacle
+const upperObstacle = document.createElement("div");
+upperObstacle.classList.add("obstacle");
+upperObstacle.style.height = upperHeight + "px";
+upperObstacle.style.left = "400px";
+upperObstacle.style.top = "0";
+obstacles.appendChild(upperObstacle);
+
+// Create lower obstacle
+const lowerObstacle = document.createElement("div");
+lowerObstacle.classList.add("obstacle");
+lowerObstacle.style.height = lowerHeight + "px";
+lowerObstacle.style.left = "400px";
+lowerObstacle.style.bottom = "0";
+obstacles.appendChild(lowerObstacle);
+
+// Move obstacles
+let obstacleX = 400;
+const obstacleMove = setInterval(() => {
+obstacleX -= 2;
+upperObstacle.style.left = obstacleX + "px";
+lowerObstacle.style.left = obstacleX + "px";
+
+// Remove obstacles when they go off screen
+if (obstacleX < -60) {
+clearInterval(obstacleMove);
+obstacles.removeChild(upperObstacle);
+obstacles.removeChild(lowerObstacle);
+}
+
+// Increase score when bird passes an obstacle
+if (obstacleX === 50) {
+score++;
+scoreElement.textContent = "Score: " + score;
+obstacleCount++;
+}
+}, 20);
+}
+
+// Check for collisions
+function checkCollision() {
+const birdRect = bird.getBoundingClientRect();
+const allObstacles = document.querySelectorAll(".obstacle");
+
+for (let obstacle of allObstacles) {
+const obstacleRect = obstacle.getBoundingClientRect();
+if (
+birdRect.left < obstacleRect.right &&
+birdRect.right > obstacleRect.left &&
+birdRect.top < obstacleRect.bottom &&
+birdRect.bottom > obstacleRect.top
+) {
+return true;
+}
+}
+return false;
+}
+
+// Show winner emote and trophy
+function showWinner() {
+winnerElement.style.display = "block";
+setTimeout(() => {
+resetLevel();
+}, 3000); // Reset level after 3 seconds
+}
+
+// End the game
+function endGame() {
+clearInterval(gameInterval);
+clearInterval(obstacleInterval);
+finalScoreElement.textContent = "Score: " + score;
+gameOverElement.style.display = "flex";
+}
+
+// Restart the game
+restartButton.addEventListener("click", () => {
+gameOverElement.style.display = "none";
+resetGame();
+});
+
+// Reset the game
+function resetGame() {
+birdY = 250;
+score = 0;
+obstacleCount = 0;
+level = 1;
+scoreElement.textContent = "Score: " + score;
+levelElement.textContent = "Level: 1";
+obstacles.innerHTML = ""; // Clear all obstacles
+startGame();
+}
+
+// Start the game
+function startGame() {
+gameInterval = setInterval(moveBird, 20);
+obstacleInterval = setInterval(createObstacle, 2000); // Obstacles every 2 seconds
+}
+
+startGame();
+</script>
+</body>
+</html>
